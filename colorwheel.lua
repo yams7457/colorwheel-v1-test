@@ -43,7 +43,7 @@ my_lattice = lattice:new{}
 
 all_possible_divisions={16/8,15/8,14/8,13/8,12/8,11/8,10/8,9/8,8/8,7/8,6/8,5/8,4/8,3/8,2/8,1/8}
 for _, division in ipairs(all_possible_divisions) do
-    my_lattice:new_pattern{
+    my_lattice:new_sprocket{
         action=function(t)
             for i = 1,4 do
                 for key,value in pairs(note_traits.current) do

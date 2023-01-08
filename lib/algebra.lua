@@ -202,13 +202,17 @@ function m:all_off()
 end
 
 function trait_tick(a_trait, track, t)
+    if params:get("current " .. a_trait .. " step " ..track) + 1 > params:get(a_trait.. " sequence end " ..track) or params:get("current " .. a_trait .. " step " ..track) + 1 < params:get(a_trait .. " sequence start " ..track) then
+      params:set("current " .. a_trait .. " step " .. track, params:get(a_trait .. " sequence start " ..track))
+    else
+      params:set("current " .. a_trait .. " step " .. track, params:get("current " .. a_trait .. " step " .. track) + 1)
+    end
      if a_trait == "gate" 
-      and params:get("gate " ..track.. " " ..params:get("current gate step " ..track)) == 1 
+      and params:get("gate " ..track.. " " ..params:get("current gate step " ..track)) == 1
           and math.random(1,100) <= params:get("gate probability " .. track .. " " .. params:get("current gate step " ..track))
             then
               determine_traits(track)
             end
-    params:set("current " .. a_trait .. " step " .. track, ((params:get("current " .. a_trait .. " step " .. track) - params:get(a_trait .. " sequence start " .. track)) + 1) % (params:get(a_trait .. " sequence end " .. track) - params:get(a_trait .. " sequence start " .. track) + 1) + params:get(a_trait .. " sequence start " .. track))
     grid_dirty = true
     if t % (params:get(a_trait.. ' div ' ..track) * params:get("global clock div")) == 0 then
     end
