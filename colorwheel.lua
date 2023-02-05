@@ -16,6 +16,7 @@ include 'lib/pset_sequencer'
 transposition_center = 0
 write_preset = 0
 change_preset = 0
+banned_intervals = {}
 
 g = grid.connect()
 
@@ -41,13 +42,13 @@ function init()
 
 my_lattice = lattice:new{}
 
-all_possible_divisions={16/8,15/8,14/8,13/8,12/8,11/8,10/8,9/8,8/8,7/8,6/8,5/8,4/8,3/8,2/8,1/8}
+all_possible_divisions={16/16,15/16,14/16,13/16,12/16,11/16,10/16,9/16,8/16,7/16,6/16,5/16,4/16,3/16,2/16,1/16}
 for _, division in ipairs(all_possible_divisions) do
     my_lattice:new_sprocket{
         action=function(t)
             for i = 1,4 do
                 for key,value in pairs(note_traits.current) do
-                  if params:get(key.. " div " ..i) / 8 ==division then
+                  if params:get(key.. " div " ..i) / 16 ==division then
                     trait_tick(key, i, t)
                   
                   end
@@ -131,6 +132,9 @@ end
 --     end
 -- end
 
+numbers_to_keys = {"Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"}
+numbers_to_keys[0] = "C"
+
 function grid_redraw_clock()
   while true do
     clock.sleep(1/30)
@@ -161,7 +165,9 @@ function redraw()
   screen.move(6,52)
   screen.level(16)
   screen.font_size(8)
-  screen.text("clock_source")
+  screen.text(params:string("clock_source"))
+  screen.move(78,52)
+  screen.text(params["name"])
 
   screen.level(0)
   screen.stroke()
@@ -170,9 +176,9 @@ function redraw()
   screen.text(math.floor(clock.get_tempo()))
   screen.font_size(32)
   screen.move(96, 40)
-  screen.text(norns.state.pset_last)
+  screen.text(params["name"])
   screen.move(56, 40)
-  screen.text("C")
+  screen.text(numbers_to_keys[params:get("transpose")])
   screen.update()
 end
 
@@ -328,10 +334,10 @@ end
 function randomize()
   transposition_center = math.random(-2,2)
   for i = 1,4,1 do
-  --   for key,value in pairs(note_traits.current) do
-  --     params:set(key.. " sequence end " ..i, math.random(1,16))
-  --     params:set(key.. " div " ..i, math.random(1,5))
-  --   end
+     for key,value in pairs(note_traits.current) do
+       params:set(key.. " sequence end " ..i, math.random(1,16))
+       params:set(key.. " div " ..i, math.random(1,5))
+     end
 
   for j = 1,16,1 do
       params:set("gate " ..i .." "..j, math.random(0,1))
@@ -339,10 +345,10 @@ function randomize()
       params:set("alt note " ..i .." " ..j, math.random(0,4))
       params:set("octave " ..i .." "..j, math.random(1,2))
       params:set("velocity " ..i .." "..j, math.random(2, 5))
-      -- params:set("length " ..i .." "..j, math.random(1,5))
-      -- params:set("carving " ..i, math.random(1,4))
-      -- params:set("offset " ..i, params:get("offset " ..i) + math.random(-1,1))
-      -- params:set("transposition " ..i, transposition_center + math.random(-1,1))
+       params:set("length " ..i .." "..j, math.random(1,5))
+       params:set("carving " ..i, math.random(1,4))
+       params:set("offset " ..i, params:get("offset " ..i) + math.random(-1,1))
+       params:set("transposition " ..i, transposition_center + math.random(-1,1))
   end
       params:set("gate " ..i .." 1", 1)
 
@@ -397,7 +403,9 @@ function g.key(x,y,z)
       if y == 8 then -- this is all for the seq nav bar!
         if x <= 4 and z == 1 then
           navigation_bar.displayed_track = x
-        elseif x == 7 and navigation_bar.displayed_trait == 2 and z == 1 then
+        elseif x == 7 and navigation_bar.displayed_trait == 2 and z == 1 and momentary_time == false then
+          navigation_bar.displayed_trait = 7
+        elseif x == 7 and navigation_bar.displayed_trait == 7 and z == 1 and momentary_time == true then
           navigation_bar.displayed_trait = 7
         elseif x <= 10 and x >= 6 and z == 1 then
           navigation_bar.displayed_trait = x - 5
@@ -499,9 +507,10 @@ function g.key(x,y,z)
       params:set("output slot " ..math.floor((x - 1) / 4) + 1, (x - math.floor((x - 1) / 4) * 4) % 5)
     end
     
+    
     if y == 8 then
       if x <= 4 then
-       momentary_time = false
+      momentary_time = false
       end
       if x <= 10 and x >= 6 then
         momentary_time = false
@@ -794,6 +803,8 @@ end
 
 function set_up_the_interval_page(track)
     build_the_interval_display_table(track)
+    find_the_banned_intervals(track)
+
   if not momentary_prob and not momentary_time then -- if no mod keys are pressed
     for x = 1,16,1 do
       g:led(x, 6 - display_interval[track][x], 2)
@@ -802,15 +813,22 @@ function set_up_the_interval_page(track)
         if params:get('gate ' ..track.. ' ' ..x) == 1 then
           g:led(x, 6-display_interval[track][x], 15)
         else
-          g:led(x, 6-display_interval[track][x], 8)
+          g:led(x, 6-display_interval[track][x], 7)
         end
     end
     for x = params:get('interval sequence start ' ..track), params:get('interval sequence end ' ..track) do
       g:led(x, 6, 4)
     end
     g:led(params:get('current interval step ' ..track), 6, 15)
+    
+      for i = 1,tablelength(banned_intervals[track]) do
+        for x = params:get('interval sequence start ' ..track),params:get('interval sequence end ' ..track) do
+          g:led(x, 6 - banned_intervals[track][i], 2)
+        end
+      end
     end
     g:led(params:get('interval div ' ..track), 7, 4)
+
 
 end
 
@@ -838,6 +856,16 @@ function build_the_interval_display_table(track)
       interval_all_spelled_out[x] = params:get("offset") + (params:get('key') + (collection_0[outer_index][inner_index_var] + 24) + ( 7 * params:get("transposition " ..track))) % 12
       display_interval[track][x] = get_key_for_value(interval_display_table[track], interval_all_spelled_out[x])
     end
+end
+
+function find_the_banned_intervals(track)
+  banned_intervals[track] = {}
+  for i = 2,5 do
+    if interval_display_table[track][i - 1] == interval_display_table[track][i] then 
+      table.insert(banned_intervals[track], i)
+    end 
+  end
+  tab.print(banned_intervals[track])
 end
 
 function set_up_the_octave_page(track)
@@ -1002,6 +1030,7 @@ end
 function change_gate_clock_div(x, y)
   if y <= 4 then
     params:set('gate div ' ..y, x)
+    params:set('interval div ' ..y, x)
     tracks[y].gate_pattern:set_division(params:get('gate div ' ..y) / 32)
   end
 end
@@ -1042,6 +1071,9 @@ end
 
 function change_div(x,y,z,trait,track)
   params:set((trait_dummies[trait].. ' div ' ..track), x)
+  if trait == 2 then
+    change_div(x,y,z, 1,track)
+  end
 end
 
 function change_global_div(x,y,z)
@@ -1063,9 +1095,19 @@ function activate_modifier(x,y,z)
   end
 end
 
+params.action_read = function (filename, silent, pset_number)
+  print(filename, "this is the thing")
+end
+
 function get_key_for_value( t, value )
   for k,v in pairs(t) do
     if v==value then return k end
   end
   return nil
+end
+
+function tablelength(T)
+  local count = 0
+  for _ in pairs(T) do count = count + 1 end
+  return count
 end
