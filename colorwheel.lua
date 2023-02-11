@@ -48,10 +48,13 @@ for _, division in ipairs(all_possible_divisions) do
         action=function(t)
             for i = 1,4 do
                 for key,value in pairs(note_traits.current) do
-                  if params:get(key.. " div " ..i) / 16 ==division then
+                  if params:get(key.. " div " ..i) / 16 ==division  and key ~= "gate" then
                     trait_tick(key, i, t)
                   
                   end
+                end
+                if params:get("gate div " ..i) / 16 ==division then
+                  trait_tick("gate", i, t)
                 end
             end
         end,
@@ -61,6 +64,7 @@ for _, division in ipairs(all_possible_divisions) do
 end
 
 end
+
 
 -- old clock shit
 
@@ -155,30 +159,14 @@ function redraw()
   
   screen.clear()
   screen.stroke()
-  screen.level(16)
-  screen.circle(28,30,17)
-  screen.fill()
-  screen.level(8)
-  screen.circle(64,30,17)
-  screen.circle(100,30,17)
-  screen.fill()
-  screen.move(6,52)
-  screen.level(16)
+ 
+  screen.move(0,10)
   screen.font_size(8)
-  screen.text(params:string("clock_source"))
-  screen.move(78,52)
-  screen.text(params["name"])
-
-  screen.level(0)
-  screen.stroke()
-  screen.move(17,36)
-  screen.font_size(18)
-  screen.text(math.floor(clock.get_tempo()))
-  screen.font_size(32)
-  screen.move(96, 40)
-  screen.text(params["name"])
-  screen.move(56, 40)
-  screen.text(numbers_to_keys[params:get("transpose")])
+  screen.text("tempo: " ..math.floor(clock.get_tempo()).. " - " ..params:string("clock_source"))
+  screen.move(0,20)
+  screen.text("key: " ..numbers_to_keys[params:get("transpose")])
+  screen.move(0, 30)
+  screen.text("PSET: "..norns.state.pset_last.. " - "..params["name"])
   screen.update()
 end
 
